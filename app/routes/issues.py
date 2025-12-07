@@ -415,10 +415,24 @@ async def _build_issue_response(db: AsyncSession, issue: Issue) -> IssueResponse
     if creator:
         creator_name = creator.name
 
-    response = IssueResponse.from_orm(issue)
-    response.labels = [IssueLabelResponse.from_orm(label) for label in labels]
-    response.subtasks = [SubtaskResponse.from_orm(subtask) for subtask in subtasks]
-    response.assignee_name = assignee_name
-    response.creator_name = creator_name
+    # Construct response manually to avoid lazy-loading issues
+    response = IssueResponse(
+        id=issue.id,
+        title=issue.title,
+        description=issue.description,
+        project_id=issue.project_id,
+        creator_id=issue.creator_id,
+        assignee_id=issue.assignee_id,
+        status=issue.status,
+        priority=issue.priority,
+        due_date=issue.due_date,
+        position=issue.position,
+        created_at=issue.created_at,
+        updated_at=issue.updated_at,
+        labels=[IssueLabelResponse.from_orm(label) for label in labels],
+        subtasks=[SubtaskResponse.from_orm(subtask) for subtask in subtasks],
+        assignee_name=assignee_name,
+        creator_name=creator_name
+    )
 
     return response

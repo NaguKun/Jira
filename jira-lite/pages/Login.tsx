@@ -1,7 +1,25 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useData } from '../contexts/DataContext';
+import { authApi } from '../services/api';
+
+// Google Client ID - should be set in environment variable
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
+
+declare global {
+  interface Window {
+    google?: {
+      accounts: {
+        id: {
+          initialize: (config: any) => void;
+          renderButton: (element: HTMLElement, config: any) => void;
+          prompt: () => void;
+        };
+      };
+    };
+  }
+}
 
 export const Login: React.FC = () => {
   const navigate = useNavigate();
@@ -9,6 +27,57 @@ export const Login: React.FC = () => {
   const { setCurrentUser } = useData();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [googleError, setGoogleError] = useState('');
+
+  // Initialize Google Sign-In
+  useEffect(() => {
+    if (GOOGLE_CLIENT_ID && typeof window !== 'undefined') {
+      const script = document.createElement('script');
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.async = true;
+      script.defer = true;
+      script.onload = () => {
+        if (window.google) {
+          window.google.accounts.id.initialize({
+            client_id: GOOGLE_CLIENT_ID,
+            callback: handleGoogleCallback,
+          });
+          const buttonDiv = document.getElementById('google-signin-button');
+          if (buttonDiv) {
+            window.google.accounts.id.renderButton(buttonDiv, {
+              theme: 'outline',
+              size: 'large',
+              width: '100%',
+              text: 'signin_with',
+            });
+          }
+        }
+      };
+      document.body.appendChild(script);
+      return () => {
+        document.body.removeChild(script);
+      };
+    }
+  }, []);
+
+  const handleGoogleCallback = async (response: { credential: string }) => {
+    setGoogleLoading(true);
+    setGoogleError('');
+    try {
+      const result = await authApi.googleLogin(response.credential);
+      localStorage.setItem('access_token', result.data.access_token);
+      
+      // Fetch user info
+      const userResponse = await authApi.getMe();
+      setCurrentUser(userResponse.data as any);
+      navigate('/dashboard');
+    } catch (err: any) {
+      setGoogleError(err.response?.data?.detail || 'Google login failed');
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,9 +105,9 @@ export const Login: React.FC = () => {
         
         <div className="p-8">
           <form onSubmit={handleLogin} className="space-y-6">
-            {error && (
+            {(error || googleError) && (
               <div className="p-3 bg-red-50 border border-red-200 rounded-md text-red-700 text-sm">
-                {error}
+                {error || googleError}
               </div>
             )}
             
@@ -91,13 +160,21 @@ export const Login: React.FC = () => {
                 <span className="px-2 bg-white text-slate-500">Or continue with</span>
               </div>
             </div>
-            <div className="mt-6 grid grid-cols-2 gap-3">
-               <button className="w-full inline-flex justify-center py-2 px-4 border border-slate-300 rounded-md shadow-sm bg-white text-sm font-medium text-slate-500 hover:bg-slate-50">
-                 Google
-               </button>
-               <button className="w-full inline-flex justify-center py-2 px-4 border border-slate-300 rounded-md shadow-sm bg-white text-sm font-medium text-slate-500 hover:bg-slate-50">
-                 GitHub
-               </button>
+            <div className="mt-6">
+               {GOOGLE_CLIENT_ID ? (
+                 <div id="google-signin-button" className="flex justify-center">
+                   {googleLoading && (
+                     <div className="flex items-center justify-center py-2">
+                       <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
+                       <span className="ml-2 text-sm text-slate-600">Signing in with Google...</span>
+                     </div>
+                   )}
+                 </div>
+               ) : (
+                 <div className="text-center text-sm text-slate-500 p-3 bg-slate-50 rounded-md">
+                   Google Sign-In not configured. Set VITE_GOOGLE_CLIENT_ID to enable.
+                 </div>
+               )}
             </div>
           </div>
           

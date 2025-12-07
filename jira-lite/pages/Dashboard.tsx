@@ -6,7 +6,7 @@ import { Status } from '../types';
 
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { currentUser, issues, projects, isLoading, isAuthenticated, fetchProjects, fetchIssues } = useData();
+  const { currentUser, issues, projects, isLoading, isAuthenticated, fetchProjects, fetchIssues, toggleFavorite } = useData();
   const [dataLoaded, setDataLoaded] = useState(false);
 
   // Redirect if not authenticated
@@ -122,22 +122,43 @@ export const Dashboard: React.FC = () => {
         <div>
           <h2 className="text-lg font-bold text-slate-800 mb-4">My Projects</h2>
           <div className="space-y-4">
-            {projects.map(project => (
-              <Link to={`/projects/${project.id}`} key={project.id} className="block group">
-                <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-200 group-hover:border-primary transition-colors">
-                  <div className="flex items-center gap-3 mb-2">
+            {[...projects]
+              .sort((a, b) => (b.is_favorite ? 1 : 0) - (a.is_favorite ? 1 : 0))
+              .filter(p => !p.is_archived)
+              .map(project => (
+              <div key={project.id} className="bg-white p-4 rounded-lg shadow-sm border border-slate-200 hover:border-primary transition-colors group">
+                <div className="flex items-center gap-3 mb-2">
+                  <Link to={`/projects/${project.id}`} className="flex items-center gap-3 flex-1">
                     <div className="w-8 h-8 rounded bg-blue-100 text-primary flex items-center justify-center font-bold">
                       {project.name[0]}
                     </div>
                     <div>
                       <h3 className="font-bold text-slate-800 group-hover:text-primary transition-colors">{project.name}</h3>
                     </div>
-                  </div>
-                  <p className="text-sm text-slate-600 line-clamp-2">{project.description}</p>
+                  </Link>
+                  <button 
+                    onClick={(e) => {
+                      e.preventDefault();
+                      toggleFavorite(project.id, project.is_favorite || false);
+                    }}
+                    className={`p-1.5 rounded-md transition-colors ${
+                      project.is_favorite 
+                        ? 'text-yellow-500 hover:text-yellow-600' 
+                        : 'text-slate-300 hover:text-yellow-500'
+                    }`}
+                    title={project.is_favorite ? 'Remove from favorites' : 'Add to favorites'}
+                  >
+                    <svg className="w-5 h-5" fill={project.is_favorite ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                    </svg>
+                  </button>
                 </div>
-              </Link>
+                <Link to={`/projects/${project.id}`}>
+                  <p className="text-sm text-slate-600 line-clamp-2">{project.description}</p>
+                </Link>
+              </div>
             ))}
-            {projects.length === 0 && (
+            {projects.filter(p => !p.is_archived).length === 0 && (
               <div className="text-center text-slate-500 py-8">
                 No projects yet. Create a team first, then add projects.
               </div>

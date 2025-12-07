@@ -18,7 +18,7 @@ interface Comment {
 }
 
 export const IssueModal: React.FC<IssueModalProps> = ({ issueId, projectId, onClose }) => {
-  const { issues, addIssue, updateIssue, deleteIssue, addComment, currentUser, addSubtask, toggleSubtask } = useData();
+  const { issues, projects, addIssue, updateIssue, deleteIssue, addComment, currentUser, addSubtask, toggleSubtask, fetchTeamMembers } = useData();
   const [formData, setFormData] = useState<Partial<Issue>>({
     title: '',
     description: '',
@@ -32,6 +32,7 @@ export const IssueModal: React.FC<IssueModalProps> = ({ issueId, projectId, onCl
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
   const [comments, setComments] = useState<Comment[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [teamMembers, setTeamMembers] = useState<{ user_id: number; user_name: string; user_email: string; role: string }[]>([]);
 
   const isEditing = !!issueId;
   const currentIssue = issues.find(i => i.id === issueId);
@@ -42,7 +43,18 @@ export const IssueModal: React.FC<IssueModalProps> = ({ issueId, projectId, onCl
       // Load comments
       loadComments();
     }
-  }, [currentIssue]);
+    // Load team members for assignee dropdown
+    loadTeamMembers();
+  }, [currentIssue, projectId]);
+
+  const loadTeamMembers = async () => {
+    // Find the project to get team_id
+    const project = projects.find(p => p.id === projectId);
+    if (project?.team_id) {
+      const members = await fetchTeamMembers(project.team_id);
+      setTeamMembers(members);
+    }
+  };
 
   const loadComments = async () => {
     if (issueId) {
@@ -255,6 +267,22 @@ export const IssueModal: React.FC<IssueModalProps> = ({ issueId, projectId, onCl
                 >
                   {Object.values(Priority).map(p => (
                     <option key={p} value={p}>{p}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Assignee</label>
+                <select 
+                  value={formData.assignee_id || ''}
+                  onChange={(e) => handleChange('assignee_id', e.target.value ? parseInt(e.target.value) : null)}
+                  className="w-full rounded-md border-slate-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm bg-white"
+                >
+                  <option value="">Unassigned</option>
+                  {teamMembers.map(member => (
+                    <option key={member.user_id} value={member.user_id}>
+                      {member.user_name}
+                    </option>
                   ))}
                 </select>
               </div>

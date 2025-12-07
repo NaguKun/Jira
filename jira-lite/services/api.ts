@@ -1,6 +1,6 @@
 import axios, { AxiosInstance, InternalAxiosRequestConfig } from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE_URL = 'http://localhost:8000';
 
 // Create axios instance
 const api: AxiosInstance = axios.create({
@@ -42,6 +42,9 @@ export const authApi = {
 
     login: (data: { email: string; password: string }) =>
         api.post<{ access_token: string; token_type: string }>('/auth/login', data),
+
+    googleLogin: (credential: string) =>
+        api.post<{ access_token: string; token_type: string }>('/auth/google', { credential }),
 
     getMe: () => api.get('/auth/me'),
 

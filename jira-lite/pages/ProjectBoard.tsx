@@ -13,6 +13,8 @@ export const ProjectBoard: React.FC = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [filterUser, setFilterUser] = useState<number | 'all'>('all');
+  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterPriority, setFilterPriority] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'BOARD' | 'LIST' | 'DASHBOARD'>('BOARD');
   const [dataLoaded, setDataLoaded] = useState(false);
 
@@ -51,7 +53,9 @@ export const ProjectBoard: React.FC = () => {
      const matchesProject = i.project_id === numericProjectId;
      const matchesSearch = i.title.toLowerCase().includes(search.toLowerCase()) || String(i.id).includes(search);
      const matchesUser = filterUser === 'all' || i.assignee_id === filterUser;
-     return matchesProject && matchesSearch && matchesUser;
+     const matchesStatus = filterStatus === 'all' || i.status === filterStatus;
+     const matchesPriority = filterPriority === 'all' || i.priority === filterPriority;
+     return matchesProject && matchesSearch && matchesUser && matchesStatus && matchesPriority;
   });
 
   const handleDragStart = (e: React.DragEvent, issueId: number) => {
@@ -117,19 +121,40 @@ export const ProjectBoard: React.FC = () => {
             </button>
           </div>
 
-          <div className="flex items-center gap-3 w-full md:w-auto">
+          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
              <input 
                type="text" 
                placeholder="Search issues..." 
                value={search}
                onChange={(e) => setSearch(e.target.value)}
-               className="px-3 py-1.5 bg-white border border-slate-300 rounded-md text-sm w-full md:w-48 focus:ring-1 focus:ring-primary"
+               className="px-3 py-1.5 bg-white border border-slate-300 rounded-md text-sm w-full md:w-40 focus:ring-1 focus:ring-primary"
             />
-            <button 
-              onClick={() => setFilterUser('all')}
-              className={`px-3 py-1.5 text-sm rounded-md ${filterUser === 'all' ? 'bg-primary text-white' : 'bg-slate-100 text-slate-600'}`}
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="px-2 py-1.5 bg-white border border-slate-300 rounded-md text-sm focus:ring-1 focus:ring-primary"
             >
-              All
+              <option value="all">All Status</option>
+              <option value={Status.BACKLOG}>Backlog</option>
+              <option value={Status.IN_PROGRESS}>In Progress</option>
+              <option value={Status.REVIEW}>Review</option>
+              <option value={Status.DONE}>Done</option>
+            </select>
+            <select
+              value={filterPriority}
+              onChange={(e) => setFilterPriority(e.target.value)}
+              className="px-2 py-1.5 bg-white border border-slate-300 rounded-md text-sm focus:ring-1 focus:ring-primary"
+            >
+              <option value="all">All Priority</option>
+              <option value={Priority.HIGH}>High</option>
+              <option value={Priority.MEDIUM}>Medium</option>
+              <option value={Priority.LOW}>Low</option>
+            </select>
+            <button 
+              onClick={() => { setFilterUser('all'); setFilterStatus('all'); setFilterPriority('all'); setSearch(''); }}
+              className="px-3 py-1.5 text-sm text-slate-500 hover:text-slate-700 rounded-md hover:bg-slate-100"
+            >
+              Clear
             </button>
           </div>
         </div>

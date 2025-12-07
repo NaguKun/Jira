@@ -226,3 +226,80 @@ async def delete_account(
     await db.commit()
 
     return {"message": "Account deleted successfully"}
+
+
+# ============ GOOGLE OAUTH ============
+from pydantic import BaseModel
+
+class GoogleTokenRequest(BaseModel):
+    credential: str  # Google ID token from frontend
+
+@router.post("/google", response_model=Token)
+async def google_login(
+    token_request: GoogleTokenRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """Login or register via Google OAuth ID token"""
+    import httpx
+    
+    # Verify the Google ID token
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"https://oauth2.googleapis.com/tokeninfo?id_token={token_request.credential}"
+            )
+            if response.status_code != 200:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid Google token"
+                )
+            google_data = response.json()
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Failed to verify Google token"
+        )
+    
+    email = google_data.get("email")
+    name = google_data.get("name", email.split("@")[0])
+    picture = google_data.get("picture")
+    
+    if not email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email not provided by Google"
+        )
+    
+    # Check if user exists
+    result = await db.execute(select(User).where(
+        User.email == email,
+        User.deleted_at.is_(None)
+    ))
+    user = result.scalar_one_or_none()
+    
+    if user:
+        # Update profile image if available
+        if picture and not user.profile_image:
+            user.profile_image = picture
+            await db.commit()
+    else:
+        # Create new user
+        user = User(
+            email=email,
+            name=name,
+            hashed_password=None,  # OAuth users don't have password
+            is_oauth=True,
+            profile_image=picture
+        )
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+    
+    # Create access token
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": str(user.id)},
+        expires_delta=access_token_expires
+    )
+    
+    return {"access_token": access_token, "token_type": "bearer"}

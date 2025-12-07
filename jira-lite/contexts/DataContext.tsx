@@ -49,9 +49,13 @@ interface DataContextType {
   
   // Team actions
   createTeam: (name: string) => Promise<Team | null>;
+  fetchTeamMembers: (teamId: number) => Promise<{ user_id: number; user_name: string; user_email: string; role: string }[]>;
   
   // Project actions
   createProject: (data: { name: string; description?: string; team_id: number }) => Promise<Project | null>;
+  toggleFavorite: (projectId: number, isFavorite: boolean) => Promise<void>;
+  archiveProject: (projectId: number) => Promise<void>;
+  unarchiveProject: (projectId: number) => Promise<void>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -290,6 +294,55 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  const toggleFavorite = async (projectId: number, isFavorite: boolean) => {
+    try {
+      if (isFavorite) {
+        await projectsApi.unfavorite(projectId);
+      } else {
+        await projectsApi.favorite(projectId);
+      }
+      setProjects(prev => prev.map(p => 
+        p.id === projectId ? { ...p, is_favorite: !isFavorite } : p
+      ));
+    } catch (error) {
+      console.error('Failed to toggle favorite:', error);
+    }
+  };
+
+  const archiveProject = async (projectId: number) => {
+    try {
+      await projectsApi.archive(projectId);
+      setProjects(prev => prev.map(p => 
+        p.id === projectId ? { ...p, is_archived: true } : p
+      ));
+    } catch (error) {
+      console.error('Failed to archive project:', error);
+    }
+  };
+
+  const unarchiveProject = async (projectId: number) => {
+    try {
+      await projectsApi.unarchive(projectId);
+      setProjects(prev => prev.map(p => 
+        p.id === projectId ? { ...p, is_archived: false } : p
+      ));
+    } catch (error) {
+      console.error('Failed to unarchive project:', error);
+    }
+  };
+
+  // ============ TEAM MEMBER ACTIONS ============
+  const fetchTeamMembers = async (teamId: number) => {
+    try {
+      const response = await teamsApi.get(teamId);
+      const teamDetail = response.data as TeamDetail;
+      return teamDetail.members || [];
+    } catch (error) {
+      console.error('Failed to fetch team members:', error);
+      return [];
+    }
+  };
+
   return (
     <DataContext.Provider value={{ 
       issues, projects, users, teams, currentUser, notifications, isLoading, isAuthenticated,
@@ -298,7 +351,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       addComment, addSubtask, toggleSubtask,
       markNotificationRead, markAllNotificationsRead,
       fetchProjects, fetchIssues, fetchTeams, fetchNotifications, fetchTeamDetail,
-      createTeam, createProject
+      createTeam, createProject, toggleFavorite, archiveProject, unarchiveProject, fetchTeamMembers
     }}>
       {children}
     </DataContext.Provider>

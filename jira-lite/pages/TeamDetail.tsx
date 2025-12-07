@@ -6,7 +6,7 @@ import { TeamDetail as TeamDetailType } from '../types';
 export const TeamDetail: React.FC = () => {
   const { teamId } = useParams<{ teamId: string }>();
   const navigate = useNavigate();
-  const { teams, projects, fetchTeamDetail, fetchProjects, createProject, isLoading, isAuthenticated } = useData();
+  const { teams, projects, fetchTeamDetail, fetchProjects, createProject, isLoading, isAuthenticated, toggleFavorite, archiveProject, unarchiveProject } = useData();
   const [activeTab, setActiveTab] = useState<'PROJECTS' | 'MEMBERS' | 'SETTINGS'>('PROJECTS');
   const [teamDetail, setTeamDetail] = useState<TeamDetailType | null>(null);
   const [showCreateProject, setShowCreateProject] = useState(false);
@@ -99,29 +99,79 @@ export const TeamDetail: React.FC = () => {
       </div>
 
       {activeTab === 'PROJECTS' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {teamProjects.map(project => (
-            <Link key={project.id} to={`/projects/${project.id}`} className="block group">
-              <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm hover:border-primary transition-colors">
-                <div className="flex justify-between items-start">
-                  <h3 className="text-lg font-bold text-slate-900 group-hover:text-primary">{project.name}</h3>
+        <div>
+          {/* Active Projects */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+            {teamProjects.filter(p => !p.is_archived).map(project => (
+              <div key={project.id} className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm hover:shadow-md transition-all group">
+                <div className="flex justify-between items-start mb-2">
+                  <Link to={`/projects/${project.id}`} className="flex-1">
+                    <h3 className="text-lg font-bold text-slate-900 group-hover:text-primary">{project.name}</h3>
+                  </Link>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => toggleFavorite(project.id, project.is_favorite || false)}
+                      className={`p-1 rounded transition-colors ${
+                        project.is_favorite ? 'text-yellow-500' : 'text-slate-300 hover:text-yellow-500'
+                      }`}
+                      title="Favorite"
+                    >
+                      <svg className="w-4 h-4" fill={project.is_favorite ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => archiveProject(project.id)}
+                      className="p-1 text-slate-300 hover:text-slate-600 rounded transition-colors"
+                      title="Archive project"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
-                <p className="text-sm text-slate-500 mt-2">{project.description}</p>
-                <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between">
-                   <span className="text-xs text-slate-400">
-                     Created {new Date(project.created_at).toLocaleDateString()}
-                   </span>
-                   <span className="text-xs font-medium text-primary">Open Board →</span>
-                </div>
+                <Link to={`/projects/${project.id}`}>
+                  <p className="text-sm text-slate-500">{project.description}</p>
+                  <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between">
+                     <span className="text-xs text-slate-400">
+                       Created {new Date(project.created_at).toLocaleDateString()}
+                     </span>
+                     <span className="text-xs font-medium text-primary">Open Board →</span>
+                  </div>
+                </Link>
               </div>
-            </Link>
-          ))}
-          <button 
-            onClick={() => setShowCreateProject(true)}
-            className="flex items-center justify-center p-5 border-2 border-dashed border-slate-300 rounded-lg text-slate-500 hover:border-primary hover:text-primary hover:bg-blue-50 transition-colors"
-          >
-            + Create New Project
-          </button>
+            ))}
+            <button 
+              onClick={() => setShowCreateProject(true)}
+              className="flex items-center justify-center p-5 border-2 border-dashed border-slate-300 rounded-lg text-slate-500 hover:border-primary hover:text-primary hover:bg-blue-50 transition-colors min-h-[120px]"
+            >
+              + Create New Project
+            </button>
+          </div>
+
+          {/* Archived Projects */}
+          {teamProjects.filter(p => p.is_archived).length > 0 && (
+            <div>
+              <h3 className="text-sm font-bold text-slate-500 uppercase mb-3">Archived Projects</h3>
+              <div className="space-y-2">
+                {teamProjects.filter(p => p.is_archived).map(project => (
+                  <div key={project.id} className="bg-slate-50 p-3 rounded-lg border border-slate-200 flex items-center justify-between opacity-75">
+                    <div>
+                      <h4 className="font-medium text-slate-600">{project.name}</h4>
+                      <p className="text-xs text-slate-400">{project.description}</p>
+                    </div>
+                    <button
+                      onClick={() => unarchiveProject(project.id)}
+                      className="px-3 py-1 text-xs text-primary hover:bg-blue-50 rounded transition-colors"
+                    >
+                      Restore
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
