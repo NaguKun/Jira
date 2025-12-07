@@ -27,15 +27,15 @@ export const ProjectBoard: React.FC = () => {
     }
   }, [isLoading, isAuthenticated, navigate]);
 
-  // Fetch data
+  // Fetch data when project changes - always fetch to ensure fresh data
   useEffect(() => {
-    if (isAuthenticated && numericProjectId && !dataLoaded) {
+    if (isAuthenticated && numericProjectId) {
       Promise.all([
         fetchProjects(),
         fetchIssues(numericProjectId)
       ]).then(() => setDataLoaded(true));
     }
-  }, [isAuthenticated, numericProjectId, dataLoaded, fetchProjects, fetchIssues]);
+  }, [isAuthenticated, numericProjectId, fetchProjects, fetchIssues]);
 
   if (isLoading || !dataLoaded) {
     return (
@@ -336,17 +336,18 @@ export const ProjectBoard: React.FC = () => {
 
       {/* Issue Detail Modal */}
       {(selectedIssueId || isCreateModalOpen) && (
-        <IssueModal 
-          issueId={selectedIssueId || undefined} 
+        <IssueModal
+          issueId={selectedIssueId || undefined}
           projectId={numericProjectId}
           onClose={() => {
             setSelectedIssueId(null);
             setIsCreateModalOpen(false);
-            // Refresh issues
-            if (numericProjectId) {
+            // Note: No need to fetch issues here as addIssue/updateIssue already updates state
+            // Only refetch if we were viewing (not creating/editing) to get latest comments
+            if (selectedIssueId && numericProjectId) {
               fetchIssues(numericProjectId);
             }
-          }} 
+          }}
         />
       )}
     </div>

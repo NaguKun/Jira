@@ -16,14 +16,14 @@ export const Dashboard: React.FC = () => {
     }
   }, [isLoading, isAuthenticated, navigate]);
 
-  // Fetch data on mount
+  // Fetch data on mount - always fetch to ensure fresh data
   useEffect(() => {
-    if (isAuthenticated && !dataLoaded) {
+    if (isAuthenticated) {
       Promise.all([fetchProjects(), fetchIssues()]).then(() => {
         setDataLoaded(true);
       });
     }
-  }, [isAuthenticated, dataLoaded, fetchProjects, fetchIssues]);
+  }, [isAuthenticated, fetchProjects, fetchIssues]);
 
   if (isLoading) {
     return (

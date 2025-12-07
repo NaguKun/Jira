@@ -7,9 +7,10 @@ from app.core.database import Base
 
 
 class IssueStatus(str, enum.Enum):
-    BACKLOG = "Backlog"
-    IN_PROGRESS = "In Progress"
-    DONE = "Done"
+    BACKLOG = "BACKLOG"
+    IN_PROGRESS = "IN_PROGRESS"
+    REVIEW = "REVIEW"
+    DONE = "DONE"
 
 
 class IssuePriority(str, enum.Enum):
