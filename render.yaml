@@ -1,0 +1,52 @@
+# Render Blueprint for Jira Lite MVP
+# This file defines all services needed for deployment
+
+services:
+  # Backend API Service (FastAPI)
+  - type: web
+    name: jira-lite-api
+    runtime: python
+    region: singapore  # Change based on your preference
+    plan: free  # or "starter" for production
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        value: sqlite+aiosqlite:///./jira_lite.db
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALGORITHM
+        value: HS256
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: 1440
+      - key: APP_NAME
+        value: Jira Lite MVP
+      - key: FRONTEND_URL
+        sync: false  # Set this manually in Render dashboard
+      - key: OPENAI_API_KEY
+        sync: false  # Set this manually in Render dashboard
+      - key: GOOGLE_CLIENT_ID
+        sync: false  # Set this manually in Render dashboard
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false  # Set this manually in Render dashboard
+    healthCheckPath: /health
+    autoDeploy: true
+
+  # Frontend Static Site (React/Vite)
+  - type: web
+    name: jira-lite-frontend
+    runtime: static
+    buildCommand: cd jira-lite && npm install && npm run build
+    staticPublishPath: jira-lite/dist
+    envVars:
+      - key: VITE_API_URL
+        sync: false  # Set to your backend API URL after deployment
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: public, max-age=0, must-revalidate
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    autoDeploy: true
