@@ -1,156 +1,101 @@
-# Deploying Jira Lite to Render
+# Deploying Jira Lite to Render (Web Service)
 
-This guide explains how to deploy the Jira Lite MVP application to [Render](https://render.com).
+This guide explains how to deploy the Jira Lite MVP as a **single Web Service** on [Render](https://render.com).
 
-## Project Structure
+## Deployment Steps
 
-- **Backend**: FastAPI (Python) - runs as a Web Service
-- **Frontend**: React/Vite (TypeScript) - runs as a Static Site
+### 1. Create a Web Service on Render
 
----
+1. Go to [Render Dashboard](https://render.com)
+2. Click **"New"** → **"Web Service"**
+3. Connect your GitHub repository: `NaguKun/Jira`
 
-## Option 1: Using Blueprint (Recommended)
+### 2. Configure the Service
 
-The `render.yaml` file defines the entire infrastructure. This is the easiest way to deploy.
+| Setting | Value |
+|---------|-------|
+| **Name** | `jira-lite` (or your preference) |
+| **Region** | Singapore (or nearest to you) |
+| **Branch** | `main` |
+| **Runtime** | `Python 3` |
+| **Build Command** | `./build.sh` |
+| **Start Command** | `uvicorn main:app --host 0.0.0.0 --port $PORT` |
+| **Plan** | Free (or Starter for production) |
 
-### Steps:
+### 3. Set Environment Variables
 
-1. **Push your code to GitHub/GitLab**
+In the Render dashboard, add these environment variables:
 
-2. **Go to Render Dashboard**
-   - Visit [https://render.com](https://render.com)
-   - Sign in with your GitHub/GitLab account
+| Variable | Value |
+|----------|-------|
+| `DATABASE_URL` | `sqlite+aiosqlite:///./jira_lite.db` |
+| `SECRET_KEY` | (click "Generate" for a random key) |
+| `ALGORITHM` | `HS256` |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | `1440` |
+| `APP_NAME` | `Jira Lite MVP` |
+| `FRONTEND_URL` | Your Render URL (e.g., `https://jira-lite.onrender.com`) |
+| `OPENAI_API_KEY` | Your OpenAI API key |
+| `GOOGLE_CLIENT_ID` | Your Google OAuth client ID |
+| `GOOGLE_CLIENT_SECRET` | Your Google OAuth secret |
 
-3. **Create Blueprint**
-   - Click **"New"** → **"Blueprint"**
-   - Select your repository
-   - Render will detect the `render.yaml` file automatically
-   - Click **"Apply"** to create all services
+### 4. Deploy
 
-4. **Configure Environment Variables**
-   After deployment, go to each service and set the following environment variables:
-
-   **Backend (`jira-lite-api`):**
-   | Variable | Description |
-   |----------|-------------|
-   | `FRONTEND_URL` | Your frontend URL (e.g., `https://jira-lite-frontend.onrender.com`) |
-   | `OPENAI_API_KEY` | Your OpenAI API key (for AI features) |
-   | `GOOGLE_CLIENT_ID` | Google OAuth client ID |
-   | `GOOGLE_CLIENT_SECRET` | Google OAuth client secret |
-
-   **Frontend (`jira-lite-frontend`):**
-   | Variable | Description |
-   |----------|-------------|
-   | `VITE_API_URL` | Your backend API URL (e.g., `https://jira-lite-api.onrender.com`) |
-
-5. **Update Google OAuth Redirect URI**
-   - Go to [Google Cloud Console](https://console.cloud.google.com)
-   - Update the redirect URI to: `https://jira-lite-api.onrender.com/api/auth/google/callback`
+Click **"Create Web Service"** and wait for the build to complete.
 
 ---
 
-## Option 2: Manual Deployment (Separate Services)
+## How It Works
 
-### Deploy Backend API
+- **Backend API**: Available at `/api/*` endpoints
+- **Frontend**: Served at root `/` (React SPA)
+- **API Docs**: Available at `/docs` (Swagger UI)
 
-1. **Create Web Service**
-   - Click **"New"** → **"Web Service"**
-   - Connect your repository
-   - Configure:
-     - **Name**: `jira-lite-api`
-     - **Runtime**: Python 3
-     - **Build Command**: `pip install -r requirements.txt`
-     - **Start Command**: `uvicorn main:app --host 0.0.0.0 --port $PORT`
-
-2. **Set Environment Variables**
-   Add all variables from `.env.example` in the Render dashboard.
-
-### Deploy Frontend
-
-1. **Create Static Site**
-   - Click **"New"** → **"Static Site"**
-   - Connect your repository
-   - Configure:
-     - **Name**: `jira-lite-frontend`
-     - **Build Command**: `cd jira-lite && npm install && npm run build`
-     - **Publish Directory**: `jira-lite/dist`
-
-2. **Add Rewrite Rule**
-   For React Router to work properly:
-   - Go to **Redirects/Rewrites**
-   - Add: `/* → /index.html` (Rewrite)
-
-3. **Set Environment Variables**
-   - `VITE_API_URL`: Your backend API URL
+The `build.sh` script:
+1. Installs Python dependencies
+2. Builds the React frontend
+3. Copies the build to `static/` folder for FastAPI to serve
 
 ---
 
-## Database Considerations
+## ⚠️ Important: Database
 
-⚠️ **Important**: The current setup uses SQLite, which resets on each deployment because Render uses ephemeral storage.
+The current SQLite database will **reset on each deployment**. For production:
 
-### For Production:
-
-1. **Use Render PostgreSQL**
-   - Click **"New"** → **"PostgreSQL"**
-   - Get the connection string
-   - Update `DATABASE_URL` in backend environment variables
-
-2. **Update requirements.txt**
-   Add PostgreSQL driver:
-   ```
-   asyncpg==0.29.0
-   ```
-
-3. **Update DATABASE_URL format**
-   ```
-   postgresql+asyncpg://user:password@host:port/database
-   ```
+1. **Create a PostgreSQL database** on Render
+2. Update `DATABASE_URL` to the PostgreSQL connection string
+3. Add `asyncpg==0.29.0` to `requirements.txt`
 
 ---
 
 ## Troubleshooting
 
-### Backend Issues
+### Build fails with "permission denied" for build.sh
 
-- **Build fails**: Check Python version compatibility
-- **App crashes**: Check logs in Render dashboard
-- **CORS errors**: Verify `FRONTEND_URL` is set correctly
-
-### Frontend Issues
-
-- **Build fails**: Check Node version (use Node 18+)
-- **API calls fail**: Verify `VITE_API_URL` is correct
-- **Routing issues**: Ensure rewrite rule is configured
-
-### Common Fixes
-
+Run this locally and push:
 ```bash
-# If you need to specify Python version, create runtime.txt
-echo "python-3.11.0" > runtime.txt
-
-# If you need to specify Node version, add to package.json
-"engines": {
-  "node": ">=18"
-}
+git update-index --chmod=+x build.sh
+git commit -m "Make build.sh executable"
+git push
 ```
 
----
+### Node not found during build
 
-## Cost Estimate (Free Tier)
+Render should auto-detect Node.js. If not, try setting:
+- Environment variable: `NODE_VERSION=18`
 
-| Service | Plan | Notes |
-|---------|------|-------|
-| Backend | Free | Spins down after 15 min inactivity |
-| Frontend | Free | Static hosting |
-| PostgreSQL | Free | 256MB storage, 1GB RAM |
+### Frontend not loading
 
-> **Note**: Free tier services may have a cold start delay of ~30 seconds after inactivity.
+- Check that `build.sh` completed successfully in the build logs
+- Verify the `static/` folder was created with frontend files
 
 ---
 
-## Quick Links
+## Quick Reference
 
-- [Render Documentation](https://render.com/docs)
-- [FastAPI Deployment Guide](https://render.com/docs/deploy-fastapi)
-- [Static Sites on Render](https://render.com/docs/static-sites)
+| URL Path | What It Serves |
+|----------|----------------|
+| `/` | React Frontend (index.html) |
+| `/login`, `/signup`, etc. | React Router routes |
+| `/api/*` | Backend API endpoints |
+| `/docs` | Swagger API documentation |
+| `/health` | Health check endpoint |

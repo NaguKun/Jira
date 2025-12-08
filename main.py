@@ -1,5 +1,8 @@
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from contextlib import asynccontextmanager
 
 from app.core.database import engine, Base
@@ -52,10 +55,21 @@ app.include_router(issues.router, prefix="/api")
 app.include_router(comments.router, prefix="/api")
 app.include_router(notifications.router, prefix="/api")
 
+# Serve static files from frontend build (if exists)
+static_dir = os.path.join(os.path.dirname(__file__), "static")
+if os.path.exists(static_dir):
+    app.mount("/assets", StaticFiles(directory=os.path.join(static_dir, "assets")), name="assets")
 
-@app.get("/")
-async def root():
-    """Root endpoint"""
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint"""
+    return {"status": "healthy"}
+
+
+@app.get("/api")
+async def api_root():
+    """API root endpoint"""
     return {
         "message": "Welcome to Jira Lite MVP API",
         "docs": "/docs",
@@ -63,10 +77,32 @@ async def root():
     }
 
 
-@app.get("/health")
-async def health_check():
-    """Health check endpoint"""
-    return {"status": "healthy"}
+# Catch-all route to serve React frontend (must be last)
+@app.get("/{full_path:path}")
+async def serve_spa(full_path: str):
+    """Serve the React SPA for all non-API routes"""
+    static_dir = os.path.join(os.path.dirname(__file__), "static")
+    
+    # If static directory doesn't exist, return API info
+    if not os.path.exists(static_dir):
+        return {
+            "message": "Welcome to Jira Lite MVP API",
+            "docs": "/docs",
+            "version": "1.0.0",
+            "note": "Frontend not built. Access /docs for API documentation."
+        }
+    
+    # Try to serve the requested file
+    file_path = os.path.join(static_dir, full_path)
+    if os.path.isfile(file_path):
+        return FileResponse(file_path)
+    
+    # Fallback to index.html for SPA routing
+    index_path = os.path.join(static_dir, "index.html")
+    if os.path.exists(index_path):
+        return FileResponse(index_path)
+    
+    return {"message": "Not found"}
 
 
 if __name__ == "__main__":
