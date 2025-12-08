@@ -16,4 +16,8 @@ cd ..
 mkdir -p static
 cp -r jira-lite/dist/* static/
 
+# Seed the database with demo data
+echo "Seeding database..."
+python seed_data.py
+
 echo "Build completed successfully!"
