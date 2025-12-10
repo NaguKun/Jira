@@ -1,0 +1,19 @@
+# Railway build configuration
+# Tells Railway to use both Python and Node.js
+
+[build]
+# Install Python and Node.js
+builder = "nixpacks"
+
+[phases.build]
+cmds = [
+    "npm install --prefix jira-lite",
+    "npm run build --prefix jira-lite",
+    "mkdir -p static",
+    "cp -r jira-lite/dist/* static/",
+    "pip install -r requirements.txt",
+    "python seed_data.py"
+]
+
+[phases.setup]
+nixPkgs = ["python312", "nodejs_20"]
