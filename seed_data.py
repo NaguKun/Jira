@@ -24,13 +24,23 @@ from app.core.database import Base
 async def seed_database():
     """Create dummy data for testing"""
     
-    # Delete existing database to start fresh
-    db_path = "./jira_lite.db"
-    if os.path.exists(db_path):
-        os.remove(db_path)
-        print("🗑️  Deleted existing database")
+    # Convert Railway's postgres:// URL to SQLAlchemy's async format
+    database_url = settings.DATABASE_URL
+    if database_url.startswith("postgres://"):
+        database_url = database_url.replace("postgres://", "postgresql+asyncpg://", 1)
+    elif database_url.startswith("postgresql://"):
+        database_url = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
     
-    engine = create_async_engine(settings.DATABASE_URL, echo=False)
+    # For SQLite, delete existing database to start fresh
+    if "sqlite" in database_url:
+        db_path = "./jira_lite.db"
+        if os.path.exists(db_path):
+            os.remove(db_path)
+            print("🗑️  Deleted existing database")
+    else:
+        print("📦 Using PostgreSQL database (Railway)")
+    
+    engine = create_async_engine(database_url, echo=False)
     
     # Create all tables
     async with engine.begin() as conn:

@@ -1,6 +1,7 @@
 import axios, { AxiosInstance, InternalAxiosRequestConfig } from 'axios';
 
-const API_BASE_URL = 'http://localhost:8000';
+// Use relative URL - works both locally (when served by backend) and on Railway
+const API_BASE_URL = '';
 
 // Create axios instance
 const api: AxiosInstance = axios.create({
